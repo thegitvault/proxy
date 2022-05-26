@@ -17,7 +17,6 @@ class Proxy(http.server.SimpleHTTPRequestHandler):
     _h = httplib2.Http('.cache')
 
     def do_GET(self):
-        #self.protocol_version = "HTTP/1.1"
         if self.path.endswith("gif") or self.path.endswith("ico"):
             imgname = self.path[1:]
             if not exists(imgname):
@@ -86,7 +85,12 @@ class Proxy(http.server.SimpleHTTPRequestHandler):
     def modify_html(self, tree):
         for node in tree.xpath("//*[normalize-space(string-length(text())) >= 6]"):
             if node.text:
-                node.text = re.sub(r"((?<!\S)(\b\w{6}\b)((?!\S)))", r"\g<1>™", node.text)
+                node.text = re.sub(r"((?<!\S)|^|[\"\'\)\]\}])(\b\w{6}\b)($|\S(?!\S)|\s|[\"\'\)\]\}])", r"\g<1>\g<2>™\g<3>", node.text)
+                if node.text.find("came") != -1:
+                    for child in list(node):
+                        if child.tail and len(child.tail) >= 6:
+                            child.tail = re.sub(r"((?<!\S)|^|[\"\'\)\]\}])(\b\w{6}\b)($|\S(?!\S)|\s|[\"\'\)\]\}])", r"\g<1>\g<2>™\g<3>", child.tail)
+
         for node in tree.xpath("//a[contains(@href,'https://news.ycombinator.com')]"):
             node.set("href", "")
         return tree
