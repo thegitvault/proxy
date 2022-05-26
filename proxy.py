@@ -9,7 +9,7 @@ import lxml.html
 import requests
 from sys import getsizeof
 from http import HTTPStatus
-
+from http.server import ThreadingHTTPServer
 
 #httplib2.debuglevel = 0
 h = httplib2.Http('.cache')
@@ -26,6 +26,10 @@ class Proxy(http.server.SimpleHTTPRequestHandler):
                 self.save_remote_image(imgname)
             self.get_local_image(imgname)
             return
+        if self.path.endswith("aLT"):
+            imgname = self.path[1:]
+            if not exists(imgname):
+                self.save_remote_image(imgname)
         #self.log_headers()
 
         url = ADDRESS + self.path[1:]
@@ -61,12 +65,11 @@ class Proxy(http.server.SimpleHTTPRequestHandler):
         self.log_into_file(content, name="content")
         self.log_into_file(result, name="result")
         self.log_headers([response])
-
         x = self.wfile
         self.wfile.flush()
         print(x == self.wfile)
         self.log_into_file(response, name="response1")
-        self.apply_headers(response)
+        self.apply_headers(response, result=result)
         self.log_into_file(response, name="response2")
        # print(content == bytes(result, 'utf-8'))
         self.log_into_file(self.headers, name="/Users/Svetlana/Desktop/VSCode/headers5")
@@ -75,14 +78,16 @@ class Proxy(http.server.SimpleHTTPRequestHandler):
         # logging.basicConfig(filename='loglog.log', encoding='utf-8', level=logging.DEBUG, filemode="w")
         # logging.debug(content)
         # logging.debug(result)
+        print("size = " + str(getsizeof(result)))
         self.wfile.write(result)
-        self.log_into_file(self.rfile.read(), name="buf")
-    
-    def apply_headers(self, headers, end_header=True):
+
+    def apply_headers(self, headers, end_header=True, result=None):
         for key in headers:
-            if key.lower() == "content-length":
-                self.send_header("Content-Length", str(int(headers[key]) + 10))
+            if key.lower() == "content-length":         
+                self.send_header("content-length", str(getsizeof(result) - 33))
+                continue
             self.send_header(key.lower(), headers[key])
+        print(self._headers_buffer)
         if end_header:
             self.end_headers()
     
@@ -138,7 +143,9 @@ class Proxy(http.server.SimpleHTTPRequestHandler):
             node.set("href", "")
         return tree
 
-
+# class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+#     def __init__(self, server_address, HandlerClass):
+#         HTTPServer.__init__(self, server_address, HandlerClass)
 
 httpd = socketserver.ForkingTCPServer(('', PORT), Proxy)
 print("Now serving at " + str(PORT))
